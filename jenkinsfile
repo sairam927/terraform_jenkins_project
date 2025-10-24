@@ -1,0 +1,72 @@
+pipeline {
+    agent any
+
+    environment {
+        // You can also store these in Jenkins credentials and refer using credentials() helper
+        TF_VAR_region = "us-east-1"
+        // AWS credentials (if stored as Jenkins credentials)
+        AWS_ACCESS_KEY_ID     = credentials('aws-access-key-id')
+        AWS_SECRET_ACCESS_KEY = credentials('aws-secret-access-key')
+    }
+
+    stages {
+
+        stage('Checkout') {
+            steps {
+                echo 'Cloning repository...'
+                git branch: 'main', url: 'https://github.com/sairam927/terraform-demo.git'
+            }
+        }
+
+        stage('Terraform Init') {
+            steps {
+                echo 'Initializing Terraform...'
+                sh 'terraform init'
+            }
+        }
+
+        stage('Terraform Validate') {
+            steps {
+                echo 'Validating Terraform files...'
+                sh 'terraform validate'
+            }
+        }
+
+        stage('Terraform Plan') {
+            steps {
+                echo 'Planning Terraform changes...'
+                sh 'terraform plan -out=tfplan'
+            }
+        }
+
+        stage('Approval') {
+            steps {
+                script {
+                    def userInput = input(
+                        id: 'ApplyConfirmation', message: 'Do you want to apply these changes?',
+                        parameters: [choice(name: 'CONFIRM', choices: 'NO\nYES', description: 'Confirm apply')]
+                    )
+                    if (userInput == 'NO') {
+                        error("User aborted the apply step.")
+                    }
+                }
+            }
+        }
+
+        stage('Terraform Apply') {
+            steps {
+                echo 'Applying Terraform changes...'
+                sh 'terraform apply -auto-approve tfplan'
+            }
+        }
+    }
+
+    post {
+        success {
+            echo '✅ Terraform pipeline executed successfully!'
+        }
+        failure {
+            echo '❌ Terraform pipeline failed. Please check logs.'
+        }
+    }
+}

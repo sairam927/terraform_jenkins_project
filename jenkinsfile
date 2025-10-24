@@ -2,23 +2,26 @@ pipeline {
     agent any
 
     environment {
+        // Fetch AWS credentials stored in Jenkins (ID = aws-cred)
         AWS_CREDS = credentials('aws-cred')
+        AWS_ACCESS_KEY_ID = "${AWS_CREDS_USR}"
+        AWS_SECRET_ACCESS_KEY = "${AWS_CREDS_PSW}"
+        AWS_DEFAULT_REGION = "us-east-1"   // Change region if needed
     }
 
     stages {
-        stage('Checkout') {
+
+        stage('Checkout Code') {
             steps {
-                echo 'Cloning repository...'
+                echo '🔄 Cloning Terraform project repository...'
                 git branch: 'main', url: 'https://github.com/sairam927/terraform_jenkins_project.git'
             }
         }
 
         stage('Terraform Init') {
             steps {
-                echo 'Initializing Terraform...'
+                echo '🚀 Initializing Terraform...'
                 sh '''
-                    export AWS_ACCESS_KEY_ID=${AWS_CREDS_USR}
-                    export AWS_SECRET_ACCESS_KEY=${AWS_CREDS_PSW}
                     terraform init
                 '''
             }
@@ -26,10 +29,8 @@ pipeline {
 
         stage('Terraform Validate') {
             steps {
-                echo 'Validating Terraform files...'
+                echo '🧠 Validating Terraform configuration...'
                 sh '''
-                    export AWS_ACCESS_KEY_ID=${AWS_CREDS_USR}
-                    export AWS_SECRET_ACCESS_KEY=${AWS_CREDS_PSW}
                     terraform validate
                 '''
             }
@@ -37,10 +38,8 @@ pipeline {
 
         stage('Terraform Plan') {
             steps {
-                echo 'Planning Terraform changes...'
+                echo '📝 Creating Terraform plan...'
                 sh '''
-                    export AWS_ACCESS_KEY_ID=${AWS_CREDS_USR}
-                    export AWS_SECRET_ACCESS_KEY=${AWS_CREDS_PSW}
                     terraform plan -out=tfplan
                 '''
             }
@@ -48,10 +47,9 @@ pipeline {
 
         stage('Terraform Apply') {
             steps {
-                echo 'Applying Terraform changes...'
+                input message: 'Do you want to apply the Terraform plan?', ok: 'Apply'
+                echo '⚙️ Applying Terraform plan...'
                 sh '''
-                    export AWS_ACCESS_KEY_ID=${AWS_CREDS_USR}
-                    export AWS_SECRET_ACCESS_KEY=${AWS_CREDS_PSW}
                     terraform apply -auto-approve tfplan
                 '''
             }
@@ -63,7 +61,7 @@ pipeline {
             echo '✅ Terraform pipeline executed successfully!'
         }
         failure {
-            echo '❌ Pipeline failed. Check logs for details.'
+            echo '❌ Terraform pipeline failed. Check Jenkins console output for details.'
         }
     }
 }
